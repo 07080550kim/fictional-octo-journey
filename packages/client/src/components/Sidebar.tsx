@@ -22,6 +22,8 @@ export function Sidebar() {
   const { chats, activeChat, setActiveChat, isLoadingChats } = useChatStore();
   const { user, logout, checkAuth } = useAuthStore();
   const [search, setSearch] = useState('');
+  const [globalChats, setGlobalChats] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const [showNewChat, setShowNewChat] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -33,8 +35,31 @@ export function Sidebar() {
   const filteredChats = chats.filter((chat) => {
     if (!search) return !chat.isArchived;
     const title = chat.title || '';
-    return title.toLowerCase().includes(search.toLowerCase());
+    const otherUser = chat.type === 'private'
+      ? chat.participants?.find((p: any) => p.id !== user?.id)
+      : null;
+    const chatName = title || otherUser?.displayName || '';
+    return chatName.toLowerCase().includes(search.toLowerCase());
   });
+
+  useEffect(() => {
+    if (!search) {
+      setGlobalChats([]);
+      return;
+    }
+    const delayDebounceFn = setTimeout(async () => {
+      setIsSearching(true);
+      const res = await api.searchChats(search);
+      if (res.success && res.data) {
+        // filter out chats we are already member of
+        const joinedIds = new Set(chats.map(c => c.id));
+        setGlobalChats(res.data.filter((c: any) => !joinedIds.has(c.id)));
+      }
+      setIsSearching(false);
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [search, chats]);
 
   const formatTime = (dateStr: string) => {
     if (!dateStr) return '';
@@ -58,7 +83,7 @@ export function Sidebar() {
 
   return (
     <>
-      <div className="w-80 h-full flex flex-col border-r border-white/[0.06] glass relative z-10">
+      <div className={`h-full flex flex-col border-r border-white/[0.06] glass relative z-10 w-full md:w-80 ${activeChat ? 'hidden md:flex' : 'flex'}`}>
         {/* Шапка */}
         <div className="p-3 flex items-center gap-2">
           <button
@@ -147,21 +172,19 @@ export function Sidebar() {
                 <button
                   key={chat.id}
                   onClick={() => setActiveChat(chat)}
-                  className={`w-full px-3 py-2.5 flex items-center gap-3 transition-all text-left ${
-                    isActive
-                      ? 'bg-acid-green/10 border-r-2 border-acid-green'
-                      : 'hover:bg-white/[0.04]'
-                  }`}
+                  className={`w-full px-3 py-2.5 flex items-center gap-3 transition-all text-left ${isActive
+                    ? 'bg-acid-green/10 border-r-2 border-acid-green'
+                    : 'hover:bg-white/[0.04]'
+                    }`}
                 >
                   {/* Аватар */}
                   <div className="relative flex-shrink-0">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-medium ${
-                      chat.type === 'saved'
-                        ? 'bg-acid-cyan/20 text-acid-cyan'
-                        : chat.type === 'channel'
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-medium ${chat.type === 'saved'
+                      ? 'bg-acid-cyan/20 text-acid-cyan'
+                      : chat.type === 'channel'
                         ? 'bg-acid-pink/20 text-acid-pink'
                         : 'bg-white/[0.08]'
-                    }`}>
+                      }`}>
                       {getChatIcon(chat.type) || (
                         <span className="text-lg">
                           {(chat.title || otherUser?.displayName || '?')[0].toUpperCase()}
@@ -199,6 +222,49 @@ export function Sidebar() {
                 </button>
               );
             })
+          )}
+          {/* Global Search Results */}
+          {search && globalChats.length > 0 && (
+            <>
+              <div className="px-3 py-1 mt-2 mb-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Глобальный поиск
+              </div>
+              {globalChats.map((chat) => (
+                <button
+                  key={chat.id}
+                  onClick={async () => {
+                    // Assuming the public channels/groups can be joined using their inviteLink
+                    if (chat.type === 'channel' || chat.type === 'group') {
+                      try {
+                        await api.joinChat(chat.inviteLink || (chat.id + ''));
+                        useChatStore.getState().loadChats();
+                      } catch (e) {
+                        console.error(e);
+                      }
+                    }
+                    setActiveChat(chat);
+                  }}
+                  className="w-full px-3 py-2.5 flex items-center gap-3 transition-all text-left hover:bg-white/[0.04]"
+                >
+                  <div className={`w-12 h-12 flex-shrink-0 rounded-full flex items-center justify-center text-white font-medium ${chat.type === 'channel' ? 'bg-acid-pink/20 text-acid-pink' : 'bg-acid-cyan/20 text-acid-cyan'
+                    }`}>
+                    {chat.title?.[0]?.toUpperCase() || '?'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium truncate text-gray-200">
+                        {chat.title}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between mt-0.5">
+                      <span className="text-sm text-gray-400 truncate">
+                        {chat.memberCount || 0} участников
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </>
           )}
         </div>
 

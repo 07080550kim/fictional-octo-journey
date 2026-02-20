@@ -31,24 +31,24 @@ import {
   Trash2,
   Edit3,
   Copy,
+  ChevronLeft,
 } from 'lucide-react';
 
 const EMOJI_LIST = [
-  '\u{1F600}','\u{1F602}','\u{1F923}','\u{1F60A}','\u{1F60D}','\u{1F970}','\u{1F618}','\u{1F60E}','\u{1F914}','\u{1F60F}',
-  '\u{1F622}','\u{1F62D}','\u{1F621}','\u{1F92F}','\u{1F973}','\u{1F634}','\u{1F92E}','\u{1F44D}','\u{1F44E}','\u2764\uFE0F',
-  '\u{1F525}','\u2B50','\u{1F4AF}','\u{1F389}','\u{1F44B}','\u{1F64F}','\u{1F4AA}','\u{1F1F7}\u{1F1FA}','\u26A1','\u2705',
+  '\u{1F600}', '\u{1F602}', '\u{1F923}', '\u{1F60A}', '\u{1F60D}', '\u{1F970}', '\u{1F618}', '\u{1F60E}', '\u{1F914}', '\u{1F60F}',
+  '\u{1F622}', '\u{1F62D}', '\u{1F621}', '\u{1F92F}', '\u{1F973}', '\u{1F634}', '\u{1F92E}', '\u{1F44D}', '\u{1F44E}', '\u2764\uFE0F',
+  '\u{1F525}', '\u2B50', '\u{1F4AF}', '\u{1F389}', '\u{1F44B}', '\u{1F64F}', '\u{1F4AA}', '\u{1F1F7}\u{1F1FA}', '\u26A1', '\u2705',
 ];
 
 export function ChatWindow() {
-  const { activeChat, messages, isLoadingMessages, sendMessage, chats } = useChatStore();
+  const { activeChat, messages, isLoadingMessages, sendMessage, chats, setActiveChat } = useChatStore();
   const { user } = useAuthStore();
   const [text, setText] = useState('');
   const [replyTo, setReplyTo] = useState<any>(null);
   const [showEmoji, setShowEmoji] = useState(false);
   const [attachment, setAttachment] = useState<File | null>(null);
   const [attachPreview, setAttachPreview] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [callState, setCallState] = useState<{callId:string;type:'audio'|'video'}|null>(null);
+  const [callState, setCallState] = useState<{ callId: string; type: 'audio' | 'video' } | null>(null);
 
   // Пин
   const [pinnedMessage, setPinnedMessage] = useState<any>(null);
@@ -61,7 +61,7 @@ export function ChatWindow() {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Контекстное меню
-  const [contextMenu, setContextMenu] = useState<{x:number;y:number;msg:any}|null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; msg: any } | null>(null);
 
   // Пересылка
   const [forwardMsg, setForwardMsg] = useState<any>(null);
@@ -165,9 +165,7 @@ export function ChatWindow() {
     let mediaType: string | undefined;
     if (attachment) {
       mediaType = attachment.type.startsWith('image/') ? 'image' : 'file';
-      setUploading(true);
       const res = await api.uploadFile(attachment);
-      setUploading(false);
       if (res.success && res.data) {
         mediaUrl = res.data.url;
       }
@@ -279,9 +277,7 @@ export function ChatWindow() {
         stream.getTracks().forEach((t) => t.stop());
         const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         const file = new File([blob], `voice_${Date.now()}.webm`, { type: 'audio/webm' });
-        setUploading(true);
         const res = await api.uploadFile(file);
-        setUploading(false);
         if (res.success && res.data) {
           wsClient.send({
             type: 'message:send',
@@ -314,7 +310,7 @@ export function ChatWindow() {
   const cancelRecording = () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.ondataavailable = null;
-      mediaRecorderRef.current.onstop = () => {};
+      mediaRecorderRef.current.onstop = () => { };
       mediaRecorderRef.current.stop();
       mediaRecorderRef.current.stream.getTracks().forEach((t) => t.stop());
     }
@@ -404,6 +400,9 @@ export function ChatWindow() {
       {/* Шапка чата */}
       <div className="h-14 px-4 flex items-center justify-between border-b border-white/[0.06] glass flex-shrink-0">
         <div className="flex items-center gap-3">
+          <button onClick={() => setActiveChat(null)} className="md:hidden p-2 -ml-2 rounded-lg hover:bg-white/[0.06] text-gray-400">
+            <ChevronLeft className="w-6 h-6" />
+          </button>
           <div className="w-10 h-10 rounded-full bg-acid-cyan/15 flex items-center justify-center text-acid-cyan font-medium">
             {chatTitle[0].toUpperCase()}
           </div>
@@ -519,7 +518,7 @@ export function ChatWindow() {
                   >
                     {/* Аватар отправителя (только для чужих сообщений) */}
                     {!isMine && (
-                      <div 
+                      <div
                         className="w-8 h-8 rounded-full bg-acid-cyan/10 flex items-center justify-center text-[11px] text-acid-cyan font-bold flex-shrink-0 border border-acid-cyan/20 mb-1"
                         title={senderName}
                       >
@@ -528,11 +527,10 @@ export function ChatWindow() {
                     )}
 
                     <div
-                      className={`max-w-[70%] px-4 py-2.5 rounded-2xl group relative shadow-md ${
-                        isMine
-                          ? 'msg-mine rounded-br-none border-r-2 border-r-acid-green/30'
-                          : 'msg-other rounded-bl-none border-l-2 border-l-acid-cyan/30'
-                      }`}
+                      className={`max-w-[70%] px-4 py-2.5 rounded-2xl group relative shadow-md ${isMine
+                        ? 'msg-mine rounded-br-none border-r-2 border-r-acid-green/30'
+                        : 'msg-other rounded-bl-none border-l-2 border-l-acid-cyan/30'
+                        }`}
                     >
                       {/* Пересланное */}
                       {msg.forwardFromSender && (
@@ -586,9 +584,8 @@ export function ChatWindow() {
                       )}
 
                       {/* Время и статус */}
-                      <div className={`flex items-center justify-end gap-1.5 mt-1 select-none ${
-                        isMine ? 'text-acid-green/60' : 'text-gray-400'
-                      }`}>
+                      <div className={`flex items-center justify-end gap-1.5 mt-1 select-none ${isMine ? 'text-acid-green/60' : 'text-gray-400'
+                        }`}>
                         {msg.isEdited && <span className="text-[10px] opacity-70">ред.</span>}
                         <span className="text-[10px] font-medium">{formatTime(msg.createdAt)}</span>
                         {isMine && (
@@ -675,25 +672,7 @@ export function ChatWindow() {
         </div>
       )}
 
-      {/* Превью вложения */}
-      {attachment && (
-        <div className="px-4 py-2 glass border-t border-white/[0.06] flex items-center gap-3">
-          {attachPreview ? (
-            <img src={attachPreview} alt="" className="w-12 h-12 rounded-lg object-cover ring-1 ring-acid-green/30" />
-          ) : (
-            <div className="w-12 h-12 rounded-lg bg-white/[0.06] flex items-center justify-center">
-              <FileText className="w-6 h-6 text-gray-400" />
-            </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <div className="text-sm text-white truncate">{attachment.name}</div>
-            <div className="text-xs text-gray-400">{(attachment.size / 1024).toFixed(1)} КБ</div>
-          </div>
-          <button onClick={removeAttachment} className="text-gray-500 hover:text-white">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
+
 
       {/* Ввод сообщения */}
       <div className="p-3 glass border-t border-white/[0.06] flex-shrink-0">
@@ -773,8 +752,7 @@ export function ChatWindow() {
             {text.trim() || attachment ? (
               <button
                 onClick={handleSend}
-                disabled={uploading}
-                className="p-2.5 rounded-xl bg-acid-green text-black hover:shadow-neon-green transition-all disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0"
+                className="p-2.5 rounded-xl bg-acid-green text-black hover:shadow-neon-green transition-all flex-shrink-0"
               >
                 <Send className="w-5 h-5" />
               </button>
@@ -857,9 +835,8 @@ function VoicePlayer({ src, isMine }: { src: string; isMine: boolean }) {
   return (
     <div className="flex items-center gap-2 min-w-[180px]">
       <audio ref={audioRef} src={src} preload="metadata" />
-      <button onClick={toggle} className={`p-1.5 rounded-full transition-colors ${
-        isMine ? 'bg-black/20 hover:bg-black/30' : 'bg-white/[0.06] hover:bg-white/[0.1]'
-      }`}>
+      <button onClick={toggle} className={`p-1.5 rounded-full transition-colors ${isMine ? 'bg-black/20 hover:bg-black/30' : 'bg-white/[0.06] hover:bg-white/[0.1]'
+        }`}>
         {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
       </button>
       <div className="flex-1">

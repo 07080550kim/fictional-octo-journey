@@ -65,6 +65,52 @@ export async function chatRoutes(app: FastifyInstance) {
     return reply.send({ success: true, data: chats });
   });
 
+  // Поиск групп и каналов
+  app.get('/search', {
+    preHandler: [app.authenticate as any],
+  }, async (request: any, reply) => {
+    const { q } = request.query as { q: string };
+
+    if (!q || q.trim().length === 0) {
+      return reply.send({ success: true, data: [] });
+    }
+
+    const chats = await prisma.chat.findMany({
+      where: {
+        title: { contains: q },
+        type: { in: ['group', 'channel'] }
+      },
+      include: {
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true
+              }
+            }
+          }
+        }
+      },
+      take: 20,
+    });
+
+    const parsedChats = chats.map(c => ({
+      id: c.id,
+      type: c.type,
+      title: c.title,
+      avatarUrl: c.avatarUrl,
+      memberCount: c.members.length,
+      participants: c.members.map(m => m.user),
+      createdAt: c.createdAt,
+      updatedAt: c.updatedAt
+    }));
+
+    return reply.send({ success: true, data: parsedChats });
+  });
+
   // Создать личный чат
   app.post('/private', {
     preHandler: [app.authenticate as any],

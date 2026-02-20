@@ -96,6 +96,10 @@ class ApiClient {
     return this.request<any[]>('GET', '/chats');
   }
 
+  searchChats(q: string) {
+    return this.request<any[]>('GET', `/chats/search?q=${encodeURIComponent(q)}`);
+  }
+
   createPrivateChat(userId: string) {
     return this.request<any>('POST', '/chats/private', { userId });
   }

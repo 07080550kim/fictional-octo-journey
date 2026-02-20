@@ -49,7 +49,7 @@ export function ChatPage() {
   return (
     <div className="h-full flex acid-bg">
       <Sidebar />
-      <div className="flex-1 flex relative z-10">
+      <div className={`flex-1 flex relative z-[5] ${activeChat ? 'flex' : 'hidden md:flex'}`}>
         {activeChat ? <ChatWindow /> : <EmptyState />}
       </div>
 

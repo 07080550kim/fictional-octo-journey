@@ -240,20 +240,17 @@ export function CallModal({ callId, peerId, peerName, type, direction, onClose }
     <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-xl flex items-center justify-center">
       <div className="relative w-full h-full max-w-4xl max-h-[600px] m-4 flex flex-col items-center justify-center">
 
-        {/* Удалённое видео */}
-        {isVideoCall && status === 'active' && (
-          <video
-            ref={remoteVideoRef}
-            autoPlay
-            playsInline
-            className="absolute inset-0 w-full h-full object-cover rounded-2xl"
-          />
-        )}
-
-        {/* Удалённое аудио */}
-        {!isVideoCall && (
-          <video ref={remoteVideoRef} autoPlay playsInline className="hidden" />
-        )}
+        {/* Удалённое видео / аудио */}
+        <video
+          ref={remoteVideoRef}
+          autoPlay
+          playsInline
+          className={
+            isVideoCall && status === 'active'
+              ? 'absolute inset-0 w-full h-full object-cover rounded-2xl'
+              : 'hidden'
+          }
+        />
 
         {/* Аватар / статус */}
         {(!isVideoCall || status !== 'active') && (
@@ -276,15 +273,15 @@ export function CallModal({ callId, peerId, peerName, type, direction, onClose }
         )}
 
         {/* Локальное видео */}
-        {isVideoCall && !isCamOff && (
-          <video
-            ref={localVideoRef}
-            autoPlay
-            playsInline
-            muted
-            className="absolute bottom-20 right-4 w-36 h-28 object-cover rounded-xl border-2 border-acid-green/30 z-20"
-          />
-        )}
+        <video
+          ref={localVideoRef}
+          autoPlay
+          playsInline
+          muted
+          className={`absolute bottom-20 right-4 w-36 h-28 object-cover rounded-xl border-2 border-acid-green/30 z-20 ${
+            isVideoCall && !isCamOff ? '' : 'hidden'
+          }`}
+        />
 
         {/* Таймер поверх видео */}
         {isVideoCall && status === 'active' && (

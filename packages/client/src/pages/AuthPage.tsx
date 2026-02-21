@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuthStore } from '../store/authStore';
-import { Shield, LogIn, UserPlus } from 'lucide-react';
+import { Shield, LogIn, UserPlus, Ban, MessageSquare } from 'lucide-react';
+import { api } from '../lib/api';
 
 export function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -9,10 +10,23 @@ export function AuthPage() {
   const [displayName, setDisplayName] = useState('');
 
   const { login, register, error, isLoading, clearError } = useAuthStore();
+  const [banInfo, setBanInfo] = useState<{ reason: string } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLogin) {
+      // Проверяем бан напрямую
+      const res = await api.login({ username, password });
+      if (!res.success && res.banReason) {
+        setBanInfo({ reason: res.banReason });
+        return;
+      }
+      if (res.success && res.data) {
+        api.setToken(res.data.token);
+        window.location.reload();
+        return;
+      }
+      // Обычный логин через стор для обработки остальных ошибок
       await login(username, password);
     } else {
       await register(username, password, displayName);
@@ -26,6 +40,30 @@ export function AuthPage() {
 
   return (
     <div className="h-full flex items-center justify-center acid-bg">
+      {/* Экран бана — незакрываемый */}
+      {banInfo && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-lg">
+          <div className="glass-strong rounded-2xl w-96 max-w-[90vw] p-8 text-center">
+            <div className="w-20 h-20 rounded-full bg-acid-pink/20 flex items-center justify-center mx-auto mb-4">
+              <Ban className="w-10 h-10 text-acid-pink" />
+            </div>
+            <h2 className="text-2xl font-bold text-acid-pink mb-2">Аккаунт заблокирован</h2>
+            <div className="bg-white/[0.04] rounded-xl p-4 mb-4">
+              <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Причина</div>
+              <div className="text-white">{banInfo.reason}</div>
+            </div>
+            <a
+              href="https://t.me/your_developer"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="acid-btn w-full py-3 rounded-xl font-medium flex items-center justify-center gap-2"
+            >
+              <MessageSquare className="w-5 h-5" />
+              Связаться с разработчиком
+            </a>
+          </div>
+        </div>
+      )}
       {/* Форма */}
       <div className="relative w-full max-w-md mx-4 z-10">
         {/* Логотип */}

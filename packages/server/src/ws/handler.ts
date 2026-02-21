@@ -90,11 +90,15 @@ export function setupWebSocket(app: FastifyInstance) {
         userSockets.delete(socket);
         if (userSockets.size === 0) {
           connections.delete(userId);
-          await prisma.user.update({
-            where: { id: userId },
-            data: { isOnline: false, lastSeen: new Date() },
-          });
-          broadcastUserStatus(userId, false);
+          try {
+            await prisma.user.update({
+              where: { id: userId },
+              data: { isOnline: false, lastSeen: new Date() },
+            });
+            broadcastUserStatus(userId, false);
+          } catch (e) {
+            // Пользователь был удалён — игнорируем
+          }
         }
       }
     });

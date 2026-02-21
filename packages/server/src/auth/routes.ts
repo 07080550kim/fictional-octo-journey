@@ -130,6 +130,9 @@ export async function authRoutes(app: FastifyInstance) {
         avatarUrl: true,
         isOnline: true,
         lastSeen: true,
+        isVerified: true,
+        isBanned: true,
+        banReason: true,
         createdAt: true,
         password: true,
       },
@@ -147,6 +150,14 @@ export async function authRoutes(app: FastifyInstance) {
       return reply.status(401).send({
         success: false,
         error: 'Неверный логин или пароль',
+      });
+    }
+
+    if (user.isBanned) {
+      return reply.status(403).send({
+        success: false,
+        error: 'Ваш аккаунт заблокирован',
+        banReason: user.banReason || 'Нарушение правил',
       });
     }
 

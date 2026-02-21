@@ -216,4 +216,91 @@ export async function userRoutes(app: FastifyInstance) {
     await prisma.user.delete({ where: { id: request.user.id } });
     return reply.send({ success: true });
   });
+
+  // ==================== Админ-панель (username === '000') ====================
+
+  const isAdmin = async (request: any, reply: any) => {
+    const adminUser = await prisma.user.findUnique({ where: { id: request.user.id }, select: { username: true } });
+    if (!adminUser || adminUser.username !== '000') {
+      reply.status(403).send({ success: false, error: 'Нет доступа' });
+      return false;
+    }
+    return true;
+  };
+
+  // Получить всех пользователей
+  app.get('/admin/users', {
+    preHandler: [app.authenticate as any],
+  }, async (request: any, reply) => {
+    const ok = await isAdmin(request, reply);
+    if (!ok) return;
+
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        username: true,
+        displayName: true,
+        bio: true,
+        avatarUrl: true,
+        isOnline: true,
+        isVerified: true,
+        isBanned: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return reply.send({ success: true, data: users });
+  });
+
+  // Выдать / забрать галочку
+  app.patch('/admin/users/:userId/verify', {
+    preHandler: [app.authenticate as any],
+  }, async (request: any, reply) => {
+    const ok = await isAdmin(request, reply);
+    if (!ok) return;
+
+    const { userId } = request.params as { userId: string };
+    const { verified } = request.body as { verified: boolean };
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { isVerified: verified },
+      select: { id: true, username: true, displayName: true, isVerified: true, isBanned: true },
+    });
+
+    return reply.send({ success: true, data: user });
+  });
+
+  // Бан / разбан
+  app.patch('/admin/users/:userId/ban', {
+    preHandler: [app.authenticate as any],
+  }, async (request: any, reply) => {
+    const ok = await isAdmin(request, reply);
+    if (!ok) return;
+
+    const { userId } = request.params as { userId: string };
+    const { banned, reason } = request.body as { banned: boolean; reason?: string };
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { isBanned: banned, banReason: banned ? (reason || 'Нарушение правил') : null },
+      select: { id: true, username: true, displayName: true, isVerified: true, isBanned: true, banReason: true },
+    });
+
+    return reply.send({ success: true, data: user });
+  });
+
+  // Удалить аккаунт (админ)
+  app.delete('/admin/users/:userId', {
+    preHandler: [app.authenticate as any],
+  }, async (request: any, reply) => {
+    const ok = await isAdmin(request, reply);
+    if (!ok) return;
+
+    const { userId } = request.params as { userId: string };
+    await prisma.user.delete({ where: { id: userId } });
+
+    return reply.send({ success: true });
+  });
 }

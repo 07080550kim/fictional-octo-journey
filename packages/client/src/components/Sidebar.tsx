@@ -15,6 +15,10 @@ import {
   Camera,
   User,
   Save,
+  BadgeCheck,
+  Ban,
+  Trash2,
+  UserCog,
 } from 'lucide-react';
 import { NewChatModal } from './NewChatModal';
 
@@ -30,6 +34,9 @@ export function Sidebar() {
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
+  const [adminUsers, setAdminUsers] = useState<any[]>([]);
+  const [adminLoading, setAdminLoading] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const filteredChats = chats.filter((chat) => {
@@ -108,6 +115,21 @@ export function Sidebar() {
           >
             <Plus className="w-5 h-5" />
           </button>
+          {user?.username === '000' && (
+            <button
+              onClick={async () => {
+                setAdminLoading(true);
+                setShowAdmin(true);
+                const res = await api.getAdminUsers();
+                if (res.success && res.data) setAdminUsers(res.data);
+                setAdminLoading(false);
+              }}
+              className="w-10 h-10 rounded-full bg-acid-yellow/15 flex items-center justify-center hover:bg-acid-yellow/25 transition-colors text-acid-yellow"
+              title="Админ-панель"
+            >
+              <UserCog className="w-5 h-5" />
+            </button>
+          )}
         </div>
 
         {/* Выпадающее меню */}
@@ -147,6 +169,22 @@ export function Sidebar() {
               <LogOut className="w-4 h-4" />
               Выйти
             </button>
+            {user?.username === '000' && (
+              <button
+                onClick={async () => {
+                  setShowMenu(false);
+                  setAdminLoading(true);
+                  setShowAdmin(true);
+                  const res = await api.getAdminUsers();
+                  if (res.success && res.data) setAdminUsers(res.data);
+                  setAdminLoading(false);
+                }}
+                className="w-full px-4 py-2.5 flex items-center gap-3 text-sm text-acid-yellow hover:bg-white/[0.06] transition-colors"
+              >
+                <UserCog className="w-4 h-4" />
+                Админ-панель
+              </button>
+            )}
           </div>
         )}
 
@@ -366,6 +404,87 @@ export function Sidebar() {
                 <Save className="w-4 h-4" />
                 Сохранить
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Админ-панель */}
+      {showAdmin && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setShowAdmin(false)}>
+          <div className="glass-strong rounded-2xl w-[480px] max-w-[95vw] max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="p-4 border-b border-white/[0.06] flex items-center justify-between">
+              <h2 className="text-lg font-bold text-acid-yellow flex items-center gap-2">
+                <UserCog className="w-5 h-5" />
+                Админ-панель
+              </h2>
+              <button onClick={() => setShowAdmin(false)} className="text-gray-400 hover:text-white text-xl">&times;</button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              {adminLoading ? (
+                <div className="text-center text-gray-500 py-8">Загрузка...</div>
+              ) : adminUsers.length === 0 ? (
+                <div className="text-center text-gray-500 py-8">Нет пользователей</div>
+              ) : (
+                adminUsers.map((u) => (
+                  <div key={u.id} className="flex items-center gap-3 p-3 bg-white/[0.03] rounded-xl hover:bg-white/[0.06] transition-colors">
+                    <div className="w-10 h-10 rounded-full bg-acid-cyan/15 flex items-center justify-center text-acid-cyan font-medium flex-shrink-0">
+                      {u.displayName?.[0]?.toUpperCase() || '?'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1">
+                        <span className="font-medium text-white truncate">{u.displayName}</span>
+                        {u.isVerified && <BadgeCheck className="w-4 h-4 text-acid-cyan flex-shrink-0" />}
+                        {u.isBanned && <Ban className="w-3.5 h-3.5 text-acid-pink flex-shrink-0" />}
+                      </div>
+                      <div className="text-xs text-gray-400">@{u.username}</div>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {/* Галочка */}
+                      <button
+                        onClick={async () => {
+                          const res = await api.adminSetVerified(u.id, !u.isVerified);
+                          if (res.success) setAdminUsers(prev => prev.map(p => p.id === u.id ? { ...p, isVerified: !p.isVerified } : p));
+                        }}
+                        className={`p-1.5 rounded-lg transition-colors ${u.isVerified ? 'bg-acid-cyan/20 text-acid-cyan' : 'bg-white/[0.06] text-gray-500 hover:text-acid-cyan'}`}
+                        title={u.isVerified ? 'Забрать галочку' : 'Выдать галочку'}
+                      >
+                        <BadgeCheck className="w-4 h-4" />
+                      </button>
+                      {/* Бан */}
+                      <button
+                        onClick={async () => {
+                          if (!u.isBanned) {
+                            const reason = window.prompt('Причина бана:');
+                            if (!reason) return;
+                            const res = await api.adminSetBanned(u.id, true, reason);
+                            if (res.success) setAdminUsers(prev => prev.map(p => p.id === u.id ? { ...p, isBanned: true } : p));
+                          } else {
+                            const res = await api.adminSetBanned(u.id, false);
+                            if (res.success) setAdminUsers(prev => prev.map(p => p.id === u.id ? { ...p, isBanned: false } : p));
+                          }
+                        }}
+                        className={`p-1.5 rounded-lg transition-colors ${u.isBanned ? 'bg-acid-pink/20 text-acid-pink' : 'bg-white/[0.06] text-gray-500 hover:text-acid-pink'}`}
+                        title={u.isBanned ? 'Разбанить' : 'Забанить'}
+                      >
+                        <Ban className="w-4 h-4" />
+                      </button>
+                      {/* Удалить */}
+                      <button
+                        onClick={async () => {
+                          if (!window.confirm(`Удалить аккаунт @${u.username}?`)) return;
+                          const res = await api.adminDeleteUser(u.id);
+                          if (res.success) setAdminUsers(prev => prev.filter(p => p.id !== u.id));
+                        }}
+                        className="p-1.5 rounded-lg bg-white/[0.06] text-gray-500 hover:text-acid-pink transition-colors"
+                        title="Удалить аккаунт"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

@@ -23,7 +23,7 @@ class ApiClient {
     method: string,
     path: string,
     body?: unknown,
-  ): Promise<{ success: boolean; data?: T; error?: string }> {
+  ): Promise<{ success: boolean; data?: T; error?: string; banReason?: string }> {
     const headers: Record<string, string> = {};
 
     const token = this.getToken();
@@ -171,6 +171,23 @@ class ApiClient {
     });
 
     return res.json();
+  }
+
+  // Admin
+  getAdminUsers() {
+    return this.request<any[]>('GET', '/users/admin/users');
+  }
+
+  adminSetVerified(userId: string, verified: boolean) {
+    return this.request<any>('PATCH', `/users/admin/users/${userId}/verify`, { verified });
+  }
+
+  adminSetBanned(userId: string, banned: boolean, reason?: string) {
+    return this.request<any>('PATCH', `/users/admin/users/${userId}/ban`, { banned, reason });
+  }
+
+  adminDeleteUser(userId: string) {
+    return this.request('DELETE', `/users/admin/users/${userId}`);
   }
 }
 
